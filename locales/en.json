@@ -1,0 +1,10 @@
+{
+    "noSeatbeltNotification": "Driver is not wearing their seatbelt!",
+    "yesSeatbeltNotification": "Driver is wearing their seatbelt!",
+    "notificationTitle": "Seatbelt",
+    "checkSeatbeltCommandHelp": "Check if the driver of the nearest vehicle is wearing their seatbelt.",
+    "mustRemoveSeatbeltToExit": "You must remove your seatbelt to exit the vehicle!",
+    "noVehicleNearby": "No Nearby Vehicle!",
+    "keybindDescriptionKeyboard": "Toggle Seatbelt - Keyboard",
+    "keybindDescriptionController": "Toggle Seatbelt - Controller"
+}

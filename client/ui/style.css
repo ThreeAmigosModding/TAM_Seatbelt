@@ -1,0 +1,33 @@
+/*--------------------------------------------------------
+----       For Support - discord.gg/threeamigos       ----
+---- Do not edit if you do not know what you"re doing ----
+--------------------------------------------------------*/
+
+#vehhud-container {
+    position: relative;
+  
+    font-family: "ChaletComprime-CologneSixty";
+    font-style: normal;
+    font-weight: light;
+    font-size: 2.6svh;
+    text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.6), 0 -1px 0 rgba(0, 0, 0, 0.6),
+      1px -1px 0 rgba(0, 0, 0, 0.6), 1px 0 0 rgba(0, 0, 0, 0.6),
+      1px 1px 0 rgba(0, 0, 0, 0.6), 0 1px 0 rgba(0, 0, 0, 0.6),
+      -1px 1px 0 rgba(0, 0, 0, 0.6), -1px 0 0 rgba(0, 0, 0, 0.6);
+}
+.seatbelt {
+    position: absolute;
+    display: none;
+
+    left: 16vw !important;
+    top: 41.5vw !important;
+    
+    width: 64px;
+    height: 64px;
+    animation: disappear 0.5s cubic-bezier(1.000, -0.005, 0.000, 0.355) infinite alternate;
+}
+  
+@keyframes disappear {
+    from {opacity: 0;}
+    to {opacity: 1;}
+}
