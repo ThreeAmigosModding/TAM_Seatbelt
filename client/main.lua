@@ -3,6 +3,7 @@
 ---- Do not edit if you do not know what you"re doing ----
 --]]------------------------------------------------------
 
+
 local seatbeltOn = false
 local handbrake = 0
 local newVehicleBodyHealth = 0
@@ -31,11 +32,6 @@ local function ejectFromVehicle()
     end
 end
 
-local function resetHandBrake()
-    if handbrake <= 0 then return end
-    handbrake -= 1
-end
-
 local function seatbelt()
     while cache.vehicle do
         local sleep = 1000
@@ -43,6 +39,9 @@ local function seatbelt()
             sleep = 0
             DisableControlAction(0, 75, true)
             DisableControlAction(27, 75, true)
+            if IsDisabledControlJustPressed(0, 75) and IsVehicleStopped(cache.vehicle) then
+                lib.notify({description = locale("mustRemoveSeatbeltToExit"), type = "error"})
+            end
         end
         Wait(sleep)
     end
@@ -50,8 +49,6 @@ local function seatbelt()
 end
 
 lib.onCache("vehicle", function(value)
-    print(cache.vehicle)
-    print(value)
     seatbelt()
 end)
 
@@ -173,31 +170,9 @@ CreateThread(function()
     end
 end)
 
-CreateThread(function()
-    local sleep = 1000
-    while true do
-        Wait(sleep)
-        if cache.vehicle and cache.vehicle ~= false and cache.vehicle ~= 0 then
-            sleep = 0
-            if seatbeltOn then
-                DisableControlAction(0, 75, true)
-                DisableControlAction(27, 75, true)
-                if IsDisabledControlJustPressed(0, 75) and IsVehicleStopped(cache.vehicle) then
-                    lib.notify({description = locale("mustRemoveSeatbeltToExit"), type = "error"})
-                end
-            else
-                EnableControlAction(0, 75, true)
-                EnableControlAction(27, 75, true)
-            end
-        elseif sleep == 0 then
-            sleep = 1000
-        end
-    end
-end)
-
 local function playSound(entity, sound)
     while not RequestScriptAudioBank("audiodirectory/tam_seatbelt", false) do Wait(0) end
-    
+
     local soundId = GetSoundId()
 
     PlaySoundFromEntity(soundId, sound, entity, "tam_seatbelt", true)
@@ -245,12 +220,18 @@ lib.callback.register("tam_seatbelt:checkStatus", function()
 end)
 
 CreateThread(function()
-    while cache.vehicle do
-        SendNUIMessage({
-            action = "updateSeatbelt",
-            seatbelt = seatbeltOn
-        })
-        Wait(300)
+    local sleep = 1500
+    while true do
+        if cache.vehicle then
+            sleep = 300
+            SendNUIMessage({
+                action = "updateSeatbelt",
+                seatbelt = seatbeltOn
+            })
+        else
+            sleep = 1500
+        end
+        Wait(sleep)
     end
 end)
 
