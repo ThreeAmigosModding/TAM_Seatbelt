@@ -1,3 +1,4 @@
+---@diagnostic disable: redundant-return-value
 --[[------------------------------------------------------
 ----       For Support - discord.gg/threeamigos       ----
 ---- Do not edit if you do not know what you"re doing ----
@@ -5,7 +6,6 @@
 
 
 local seatbeltOn = false
-local handbrake = 0
 local newVehicleBodyHealth = 0
 local currentVehicleBodyHealth = 0
 local frameBodyChange = 0
@@ -16,14 +16,16 @@ local isDamaged = false
 local lastVehicle = nil
 local veloc
 local config = require "data.config"
+local isNotificationSent = false
 lib.locale()
 
 local function ejectFromVehicle()
     local coords = GetOffsetFromEntityInWorldCoords(cache.vehicle, 1.0, 0.0, 1.0)
     SetEntityCoords(cache.ped, coords.x, coords.y, coords.z)
-    Wait(1)
+
     SetPedToRagdoll(cache.ped, 5511, 5511, 0, false, false, false)
     SetEntityVelocity(cache.ped, veloc.x * 4,veloc.y * 4,veloc.z * 4)
+
     local ejectspeed = math.ceil(GetEntitySpeed(cache.ped) * 8)
     if GetEntityHealth(cache.ped) - ejectspeed > 0 then
         SetEntityHealth(cache.ped, GetEntityHealth(cache.ped) - ejectspeed)
@@ -33,58 +35,30 @@ local function ejectFromVehicle()
 end
 
 local function seatbelt()
-    while cache.vehicle do
-        local sleep = 1000
-        if seatbeltOn then
+    local sleep = 1000
+    while true do
+        if seatbeltOn and cache.vehicle then
             sleep = 0
-            DisableControlAction(0, 75, true)
-            DisableControlAction(27, 75, true)
-            if IsDisabledControlJustPressed(0, 75) and IsVehicleStopped(cache.vehicle) then
-                lib.notify({description = locale("mustRemoveSeatbeltToExit"), type = "error"})
+            lib.disableControls()
+            if IsDisabledControlJustPressed(0, 75) and not isNotificationSent then
+                lib.notify({description = locale("mustRemoveSeatbeltToExit"), type = "error", duration = 2000})
+                isNotificationSent = true
             end
+        elseif sleep == 0 then
+            sleep = 1000
         end
         Wait(sleep)
     end
-    seatbeltOn = false
-end
-
-lib.onCache("vehicle", function(value)
-    seatbelt()
-end)
-
-local function checkForHeavyDamageEjection()
-    if not seatbeltOn then
-        if math.random(math.ceil(lastFrameVehiclespeed)) >= 60 then
-            ejectFromVehicle()
-        end
-    elseif seatbeltOn and lastFrameVehiclespeed >= 110 and math.random(math.ceil(lastFrameVehiclespeed)) >= 110 then
-        ejectFromVehicle()
-    end
-end
-
-local function checkForLightDamageEjection()
-    if not seatbeltOn then
-        if math.random(math.ceil(lastFrameVehiclespeed)) >= 60 then
-            ejectFromVehicle()
-        end
-    elseif (seatbeltOn) and lastFrameVehiclespeed >= 110 and math.random(math.ceil(lastFrameVehiclespeed)) >= 110 then
-        ejectFromVehicle()
-    end
-end
-
-local function isHighSpeedRapidDeacceleration()
-    return lastFrameVehiclespeed > 110 and thisFrameVehicleSpeed < (lastFrameVehiclespeed * 0.75)
 end
 
 local function handleVehicleDamaged()
     if isDamaged then return end
-    if isHighSpeedRapidDeacceleration() then
-        if not IsThisModelABike(cache.vehicle) then
-            if frameBodyChange > 18.0  then
-                checkForHeavyDamageEjection()
-            else
-                checkForLightDamageEjection()
-            end
+
+    if lastFrameVehiclespeed > 110 and thisFrameVehicleSpeed < (lastFrameVehiclespeed * 0.75) then
+        if lib.table.contains(config.blacklistedClasses, GetVehicleClass(cache.vehicle)) then return end
+
+        if not seatbeltOn then
+            ejectFromVehicle()
         end
         isDamaged = true
     end
@@ -106,14 +80,18 @@ local function handlePedInVehicle()
     if currentVehicleBodyHealth == 1000 and frameBodyChange ~= 0 then
         frameBodyChange = 0
     end
+
     if frameBodyChange ~= 0 then
         handleVehicleDamaged()
     end
+
     if lastFrameVehiclespeed < 100 then
         Wait(100)
         tick = 0
     end
+
     frameBodyChange = newVehicleBodyHealth - currentVehicleBodyHealth
+
     if tick > 0 then
         tick -= 1
         if tick == 1 then
@@ -134,9 +112,11 @@ local function handlePedInVehicle()
         end
 
     end
+
     if tick < 0 then
         tick = 0
     end
+
     newVehicleBodyHealth = GetVehicleBodyHealth(cache.vehicle)
     veloc = GetEntityVelocity(cache.vehicle)
 end
@@ -159,17 +139,6 @@ local function handlePedNotInVehicle()
     Wait(2000)
 end
 
-CreateThread(function()
-    while true do
-        Wait(0)
-        if cache.vehicle and cache.vehicle ~= false and cache.vehicle ~= 0 then
-            handlePedInVehicle()
-        else
-            handlePedNotInVehicle()
-        end
-    end
-end)
-
 local function playSound(entity, sound)
     while not RequestScriptAudioBank("audiodirectory/tam_seatbelt", false) do Wait(0) end
 
@@ -187,10 +156,12 @@ local function toggleSeatbelt()
 
     if not seatbeltOn then
         playSound(cache.ped, "buckle")
+        lib.disableControls:Add(75)
         seatbeltOn = true
         return
     else
         playSound(cache.ped, "unbuckle")
+        lib.disableControls:Remove(75)
         seatbeltOn = false
         return
     end
@@ -198,41 +169,54 @@ end
 
 lib.addKeybind({
     name = "toggleSeatbelt",
-    description = locale("keybindDescriptionKeyboard"),
+    description = locale("keybindDescription"),
     defaultKey = config.keyboardBind,
+    defaultMapper = "KEYBOARD",
+    secondaryKey = config.controllerBind,
+    secondaryMapper = "PAD_DIGITALBUTTON",
     onPressed = function(self)
         toggleSeatbelt()
     end
 })
 
-lib.addKeybind({
-    name = "toggleSeatbeltController",
-    description = locale("keybindDescriptionController"),
-    defaultKey = config.controllerBind,
-    defaultMapper = "PAD_DIGITALBUTTON",
-    onPressed = function(self)
-        toggleSeatbelt()
-    end
-})
+lib.onCache("vehicle", function(value)
+    seatbelt()
+end)
 
 lib.callback.register("tam_seatbelt:checkStatus", function()
     return seatbeltOn
 end)
 
+exports("seatbeltActive", function() return seatbeltOn end)
+
 CreateThread(function()
-    local sleep = 1500
+    while true do
+        Wait(0)
+        if cache.vehicle and cache.vehicle ~= false and cache.vehicle ~= 0 then
+            handlePedInVehicle()
+        else
+            handlePedNotInVehicle()
+        end
+    end
+end)
+
+CreateThread(function()
+    local sleep = 500
     while true do
         if cache.vehicle then
-            sleep = 300
+            sleep = 250
             SendNUIMessage({
                 action = "updateSeatbelt",
                 seatbelt = seatbeltOn
             })
+            isNotificationSent = false
         else
-            sleep = 1500
+            SendNUIMessage({
+                action = "updateSeatbelt",
+                seatbelt = true
+            })
+            sleep = 500
         end
         Wait(sleep)
     end
 end)
-
-exports("seatbeltActive", function() return seatbeltOn end)
